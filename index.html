@@ -4,21 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#0f172a">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="Idle Clicker для VK Games. 0+, без внешних ссылок, оптимизировано под мобильные устройства.">
+  <meta name="description" content="Idle Clicker для VK Games. 0+, без внешних ссылок.">
   <title>Idle Clicker VK</title>
   <link rel="stylesheet" href="css/main.css">
-  <!-- Preload critical assets if any -->
 </head>
 <body>
-  <!-- Загрузочный экран (требование модерации ≥0.5 сек) -->
   <div id="loader" class="loader" aria-live="polite">
     <div class="loader__spinner"></div>
     <p class="loader__text">Загрузка...</p>
   </div>
 
-  <!-- Основной интерфейс (≤50 DOM-элементов) -->
   <main id="app" class="app hidden" aria-label="Игровой интерфейс">
     <header class="header">
       <h1 class="header__title">⚡ Idle Clicker</h1>
@@ -51,11 +48,10 @@
     <footer class="footer">
       <button id="btn-reward" class="btn btn--primary" type="button">🎁 Ускорить ×2</button>
       <button id="btn-interstitial" class="btn btn--secondary" type="button">📺 Бонус</button>
-      <a id="link-privacy" class="footer__link" href="#" target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a>
+      <a id="link-privacy" class="footer__link" href="privacy.html" target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a>
     </footer>
   </main>
 
-  <!-- Модальное окно настроек/политики -->
   <dialog id="modal-settings" class="modal">
     <div class="modal__content">
       <h3 class="modal__title">Настройки</h3>
@@ -65,6 +61,8 @@
     </div>
   </dialog>
 
+  <!-- VK Bridge загружается обычным скриптом до модулей -->
+  <script src="lib/vk-bridge.min.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
