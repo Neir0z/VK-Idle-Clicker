@@ -8,15 +8,13 @@ export class UIControls {
     this._bindEvents();
   }
 
-  _bindEvents() {
+   _bindEvents() {
     document.getElementById('btn-click').addEventListener('pointerdown', (e) => this._handleClick(e), { passive: true });
 
     document.getElementById('upgrades-list').addEventListener('click', (e) => {
       const btn = e.target.closest('.upgrade-buy');
       if (!btn || btn.disabled) return;
-      if (this.engine.buyUpgrade(btn.dataset.id)) {
-        ANALYTICS.trackEvent('buy_upgrade', { id: btn.dataset.id });
-      }
+      if (this.engine.buyUpgrade(btn.dataset.id)) ANALYTICS.trackEvent('buy_upgrade', { id: btn.dataset.id });
     });
 
     const modal = document.getElementById('modal-settings');
@@ -26,6 +24,13 @@ export class UIControls {
 
     document.getElementById('btn-reward').addEventListener('click', () => document.dispatchEvent(new CustomEvent('ad:reward:request')));
     document.getElementById('btn-interstitial').addEventListener('click', () => document.dispatchEvent(new CustomEvent('ad:interstitial:request')));
+
+    // 🆕 Престиж с подтверждением
+    document.getElementById('btn-prestige').addEventListener('click', () => {
+      if (confirm(`Сбросить прогресс за ${Math.floor(this.engine.state.coins / 10000)}💎? Доход вырастет навсегда.`)) {
+        if (this.engine.doPrestige()) ANALYTICS.trackEvent('prestige');
+      }
+    });
   }
 
   _handleClick(e) {
