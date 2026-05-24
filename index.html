@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Idle Clicker для VK Games. 0+, без внешних ссылок, оптимизировано под мобильные устройства.">
+  <title>Idle Clicker VK</title>
+  <link rel="stylesheet" href="css/main.css">
+  <!-- Preload critical assets if any -->
+</head>
+<body>
+  <!-- Загрузочный экран (требование модерации ≥0.5 сек) -->
+  <div id="loader" class="loader" aria-live="polite">
+    <div class="loader__spinner"></div>
+    <p class="loader__text">Загрузка...</p>
+  </div>
+
+  <!-- Основной интерфейс (≤50 DOM-элементов) -->
+  <main id="app" class="app hidden" aria-label="Игровой интерфейс">
+    <header class="header">
+      <h1 class="header__title">⚡ Idle Clicker</h1>
+      <button id="btn-settings" class="btn btn--icon" aria-label="Настройки" type="button">⚙️</button>
+    </header>
+
+    <section class="stats" aria-label="Статистика">
+      <div class="stat">
+        <span class="stat__label">Монеты</span>
+        <span id="val-coins" class="stat__value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">В секунду</span>
+        <span id="val-eps" class="stat__value">0</span>
+      </div>
+    </section>
+
+    <section class="click-zone" aria-label="Зона клика">
+      <button id="btn-click" class="click-btn" type="button" aria-label="Кликнуть для заработка">
+        <span class="click-btn__inner">💎</span>
+      </button>
+      <div id="click-fx" class="click-fx" aria-hidden="true"></div>
+    </section>
+
+    <section class="upgrades" aria-label="Улучшения">
+      <h2 class="section-title">Улучшения</h2>
+      <ul id="upgrades-list" class="upgrades__list"></ul>
+    </section>
+
+    <footer class="footer">
+      <button id="btn-reward" class="btn btn--primary" type="button">🎁 Ускорить ×2</button>
+      <button id="btn-interstitial" class="btn btn--secondary" type="button">📺 Бонус</button>
+      <a id="link-privacy" class="footer__link" href="#" target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a>
+    </footer>
+  </main>
+
+  <!-- Модальное окно настроек/политики -->
+  <dialog id="modal-settings" class="modal">
+    <div class="modal__content">
+      <h3 class="modal__title">Настройки</h3>
+      <p class="modal__text">Версия: <span id="app-version">1.0.0</span></p>
+      <p class="modal__text">Прогресс сохраняется автоматически.</p>
+      <button id="btn-close-modal" class="btn btn--primary" type="button">Закрыть</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
