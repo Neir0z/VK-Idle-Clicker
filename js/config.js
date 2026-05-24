@@ -30,3 +30,15 @@ export const ANALYTICS = {
     if (IS_DEV) console.log(`[Analytics] ${name}`, params);
   },
 };
+// 🆕 Комбо и Престиж
+export const COMBO = {
+  maxCombo: 20,
+  decayMs: 800, // пауза между кликами сбрасывает комбо
+  multiplierPerCombo: 0.05, // +5% к клику за уровень комбо
+};
+
+export const PRESTIGE = {
+  minCoinsForPrestige: 10000,
+  gemsPer10k: 1, // 1 "кристалл престижа" за каждые 10к монет
+  baseMultiplier: 0.1, // +10% ко всему доходу за 1 кристалл
+};
