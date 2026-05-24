@@ -1,9 +1,5 @@
 import { BALANCE, UPGRADES, IS_DEV } from '../config.js';
 
-/**
- * Ядро экономики. Не знает об UI, рекламе или хранилище.
- * Взаимодействие только через Pub/Sub события.
- */
 export class GameEngine {
   constructor() {
     this.state = {
@@ -20,7 +16,6 @@ export class GameEngine {
     this._initUpgradesState();
   }
 
-  /** Инициализация состояния улучшений */
   _initUpgradesState() {
     UPGRADES.forEach(u => {
       if (!this.state.upgrades[u.id]) {
@@ -29,34 +24,27 @@ export class GameEngine {
     });
   }
 
-  /** Запуск игрового цикла */
   start() {
     const interval = IS_DEV ? 100 : 1000;
     this._tickInterval = setInterval(() => this._tick(), interval / BALANCE.devSpeedMultiplier);
     this.emit('started', this.state);
   }
 
-  /** Остановка цикла */
   stop() {
     clearInterval(this._tickInterval);
     this._tickInterval = null;
   }
 
-  /** Внутренний тик экономики */
   _tick() {
     const now = Date.now();
     const delta = (now - this.state.lastTick) / 1000;
     this.state.lastTick = now;
-
     if (this.state.perSecond > 0) {
-      const earned = this.state.perSecond * this.state.multiplier * delta * BALANCE.devSpeedMultiplier;
-      this.state.coins += earned;
+      this.state.coins += this.state.perSecond * this.state.multiplier * delta * BALANCE.devSpeedMultiplier;
     }
-
     this.emit('tick', { coins: this.state.coins, eps: this.state.perSecond * this.state.multiplier });
   }
 
-  /** Обработка клика */
   click() {
     const amount = this.state.perClick * this.state.multiplier;
     this.state.coins += amount;
@@ -64,11 +52,9 @@ export class GameEngine {
     return amount;
   }
 
-  /** Покупка улучшения */
   buyUpgrade(id) {
     const cfg = UPGRADES.find(u => u.id === id);
     if (!cfg) return false;
-
     const upg = this.state.upgrades[id];
     if (this.state.coins < upg.cost) return false;
 
@@ -81,12 +67,10 @@ export class GameEngine {
     return true;
   }
 
-  /** Расчёт офлайн-дохода */
   calculateOfflineProgress(lastSavedTimestamp) {
     const now = Date.now();
     const diffSec = Math.min((now - lastSavedTimestamp) / 1000, BALANCE.maxOfflineHours * 3600);
     if (diffSec < 10 || this.state.perSecond === 0) return 0;
-
     const earned = this.state.perSecond * diffSec * BALANCE.offlineMultiplier;
     this.state.coins += earned;
     this.state.lastTick = now;
@@ -94,7 +78,6 @@ export class GameEngine {
     return earned;
   }
 
-  /** Установка множителя (например, от рекламы) */
   setMultiplier(val, durationSec = 30) {
     this.state.multiplier = val;
     this.emit('multiplierChanged', { value: val });
@@ -104,26 +87,22 @@ export class GameEngine {
     }, durationSec * 1000 / BALANCE.devSpeedMultiplier);
   }
 
-  /** Pub/Sub: Подписка */
   on(event, handler) {
     if (!this._subscribers.has(event)) this._subscribers.set(event, new Set());
     this._subscribers.get(event).add(handler);
     return () => this.off(event, handler);
   }
 
-  /** Pub/Sub: Отписка */
   off(event, handler) {
     this._subscribers.get(event)?.delete(handler);
   }
 
-  /** Pub/Sub: Публикация */
   emit(event, payload) {
     this._subscribers.get(event)?.forEach(fn => {
       try { fn(payload); } catch (e) { console.error(`[Engine] Event ${event} error:`, e); }
     });
   }
 
-  /** Экспорт состояния для сохранения */
   serialize() {
     return JSON.stringify({
       coins: this.state.coins,
@@ -136,7 +115,6 @@ export class GameEngine {
     });
   }
 
-  /** Импорт состояния */
   deserialize(json) {
     try {
       const data = JSON.parse(json);
@@ -144,8 +122,6 @@ export class GameEngine {
       this._initUpgradesState();
       this.emit('stateLoaded', this.state);
       return true;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   }
 }
