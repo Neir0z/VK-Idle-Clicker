@@ -1,4 +1,4 @@
-import { BALANCE, UPGRADES, IS_DEV } from '../config.js';
+import { BALANCE, UPGRADES, IS_DEV, COMBO, PRESTIGE } from '../config.js';
 
 export class GameEngine {
   constructor() {
@@ -8,8 +8,11 @@ export class GameEngine {
       perSecond: BALANCE.basePerSecond,
       upgrades: {},
       lastTick: Date.now(),
-      lastSave: Date.now(),
-      multiplier: 1,
+      prestigeGems: 0,
+      prestigeMultiplier: 0,
+      combo: 0,
+      lastComboTime: 0,
+      milestone: 0,
     };
     this._subscribers = new Map();
     this._tickInterval = null;
@@ -30,26 +33,31 @@ export class GameEngine {
     this.emit('started', this.state);
   }
 
-  stop() {
-    clearInterval(this._tickInterval);
-    this._tickInterval = null;
-  }
+  stop() { clearInterval(this._tickInterval); this._tickInterval = null; }
 
   _tick() {
     const now = Date.now();
     const delta = (now - this.state.lastTick) / 1000;
     this.state.lastTick = now;
     if (this.state.perSecond > 0) {
-      this.state.coins += this.state.perSecond * this.state.multiplier * delta * BALANCE.devSpeedMultiplier;
+      this.state.coins += this.state.perSecond * (1 + this.state.prestigeMultiplier) * delta * BALANCE.devSpeedMultiplier;
     }
-    this.emit('tick', { coins: this.state.coins, eps: this.state.perSecond * this.state.multiplier });
+    this.emit('tick', { coins: this.state.coins, eps: this.state.perSecond * (1 + this.state.prestigeMultiplier) });
+    this._checkMilestones();
   }
 
   click() {
-    const amount = this.state.perClick * this.state.multiplier;
+    const now = Date.now();
+    if (now - this.state.lastComboTime > COMBO.decayMs) this.state.combo = 0;
+    this.state.combo = Math.min(this.state.combo + 1, COMBO.maxCombo);
+    this.state.lastComboTime = now;
+
+    const comboMult = 1 + this.state.combo * COMBO.multiplierPerCombo;
+    const prestigeMult = 1 + this.state.prestigeMultiplier;
+    const amount = this.state.perClick * comboMult * prestigeMult;
     this.state.coins += amount;
-    this.emit('click', { amount, total: this.state.coins });
-    return amount;
+    this.emit('click', { amount, total: this.state.coins, combo: this.state.combo });
+    return { amount, combo: this.state.combo };
   }
 
   buyUpgrade(id) {
@@ -67,24 +75,43 @@ export class GameEngine {
     return true;
   }
 
+  doPrestige() {
+    if (this.state.coins < PRESTIGE.minCoinsForPrestige) return false;
+    const newGems = Math.floor(this.state.coins / (PRESTIGE.minCoinsForPrestige / PRESTIGE.gemsPer10k));
+    this.state.prestigeGems += newGems;
+    this.state.prestigeMultiplier = this.state.prestigeGems * PRESTIGE.baseMultiplier;
+    
+    // Сброс прогресса
+    this.state.coins = 0;
+    this.state.perClick = BALANCE.baseClick;
+    this.state.perSecond = BALANCE.basePerSecond;
+    this.state.combo = 0;
+    this.state.milestone = 0;
+    this._initUpgradesState();
+    UPGRADES.forEach(u => this.state.upgrades[u.id] = { level: 0, cost: u.baseCost });
+
+    this.emit('prestige', { gems: this.state.prestigeGems, multiplier: this.state.prestigeMultiplier });
+    return true;
+  }
+
   calculateOfflineProgress(lastSavedTimestamp) {
     const now = Date.now();
     const diffSec = Math.min((now - lastSavedTimestamp) / 1000, BALANCE.maxOfflineHours * 3600);
     if (diffSec < 10 || this.state.perSecond === 0) return 0;
-    const earned = this.state.perSecond * diffSec * BALANCE.offlineMultiplier;
+    const earned = this.state.perSecond * (1 + this.state.prestigeMultiplier) * diffSec * BALANCE.offlineMultiplier;
     this.state.coins += earned;
     this.state.lastTick = now;
     this.emit('offlineEarnings', { earned, seconds: diffSec });
     return earned;
   }
 
-  setMultiplier(val, durationSec = 30) {
-    this.state.multiplier = val;
-    this.emit('multiplierChanged', { value: val });
-    setTimeout(() => {
-      this.state.multiplier = 1;
-      this.emit('multiplierChanged', { value: 1 });
-    }, durationSec * 1000 / BALANCE.devSpeedMultiplier);
+  _checkMilestones() {
+    const thresholds = [100, 1000, 10000, 100000, 1000000];
+    const next = thresholds.find(t => t > this.state.coins);
+    if (next && this.state.coins >= next && this.state.milestone < next) {
+      this.state.milestone = next;
+      this.emit('milestone', { value: next });
+    }
   }
 
   on(event, handler) {
@@ -92,29 +119,19 @@ export class GameEngine {
     this._subscribers.get(event).add(handler);
     return () => this.off(event, handler);
   }
-
-  off(event, handler) {
-    this._subscribers.get(event)?.delete(handler);
-  }
-
+  off(event, handler) { this._subscribers.get(event)?.delete(handler); }
   emit(event, payload) {
-    this._subscribers.get(event)?.forEach(fn => {
-      try { fn(payload); } catch (e) { console.error(`[Engine] Event ${event} error:`, e); }
-    });
+    this._subscribers.get(event)?.forEach(fn => { try { fn(payload); } catch (e) { console.error(`[Engine] ${event}`, e); } });
   }
 
   serialize() {
     return JSON.stringify({
-      coins: this.state.coins,
-      perClick: this.state.perClick,
-      perSecond: this.state.perSecond,
-      upgrades: this.state.upgrades,
-      lastTick: this.state.lastTick,
-      lastSave: Date.now(),
-      multiplier: 1,
+      coins: this.state.coins, perClick: this.state.perClick, perSecond: this.state.perSecond,
+      upgrades: this.state.upgrades, lastTick: this.state.lastTick,
+      prestigeGems: this.state.prestigeGems, prestigeMultiplier: this.state.prestigeMultiplier,
+      milestone: this.state.milestone, lastSave: Date.now(), multiplier: 1
     });
   }
-
   deserialize(json) {
     try {
       const data = JSON.parse(json);
