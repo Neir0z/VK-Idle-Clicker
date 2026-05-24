@@ -1,79 +1,69 @@
-import vkBridge from '../lib/vk-bridge.min.js';
 import { IS_DEV } from '../config.js';
 
-/**
- * Обёртка над VK Bridge. Безопасные вызовы, обработка visibility, dev-заглушки.
- */
 export class VKBridgeManager {
   constructor() {
     this.isInitialized = false;
     this.user = null;
+    // Берём из глобальной области, куда его подключает обычный <script>
+    this._bridge = window.vkBridge || window.VKBridge;
     this._visibilityHandler = this._onVisibilityChange.bind(this);
   }
 
-  /** Инициализация моста */
   async init() {
     try {
-      if (typeof vkBridge === 'undefined') throw new Error('VK Bridge script not loaded');
-      await vkBridge.send('VKWebAppInit');
+      if (!this._bridge) throw new Error('VK Bridge not found');
+      
+      // VKWebAppInit зависает в обычном браузере, добавляем таймаут
+      const initPromise = this._bridge.send('VKWebAppInit');
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Init timeout')), 3000));
+      
+      await Promise.race([initPromise, timeout]);
       this.isInitialized = true;
       if (IS_DEV) console.log('[VK] Initialized');
       
       document.addEventListener('visibilitychange', this._visibilityHandler);
       await this._getUser();
     } catch (e) {
-      console.warn('[VK] Init failed, running in fallback mode', e);
+      console.warn('[VK] Init failed or outside VK. Fallback mode active.');
       this.isInitialized = false;
     }
   }
 
-  /** Получение данных пользователя */
   async _getUser() {
     try {
-      const data = await vkBridge.send('VKWebAppGetUserInfo');
+      const data = await this._bridge.send('VKWebAppGetUserInfo');
       this.user = data;
-      if (IS_DEV) console.log('[VK] User:', data);
-    } catch {
-      this.user = { id: 0, first_name: 'DevUser' };
-    }
+    } catch { this.user = { id: 0, first_name: 'DevUser' }; }
   }
 
-  /** Storage Get */
   async storageGet(key) {
     if (!this.isInitialized) return null;
     try {
-      const res = await vkBridge.send('VKWebAppStorageGet', { keys: [key] });
+      const res = await this._bridge.send('VKWebAppStorageGet', { keys: [key] });
       return res.keys?.[0]?.value || null;
     } catch { return null; }
   }
 
-  /** Storage Set */
   async storageSet(key, value) {
     if (!this.isInitialized) return;
-    try {
-      await vkBridge.send('VKWebAppStorageSet', { key, value });
-    } catch (e) { if (IS_DEV) console.warn('[VK] StorageSet error', e); }
+    try { await this._bridge.send('VKWebAppStorageSet', { key, value }); }
+    catch (e) { if (IS_DEV) console.warn('[VK] StorageSet error', e); }
   }
 
-  /** Обработка сворачивания/разворачивания */
   _onVisibilityChange() {
     const hidden = document.hidden;
     if (this.isInitialized) {
-      try {
-        vkBridge.send(hidden ? 'VKWebAppHide' : 'VKWebAppShow');
-      } catch {}
+      try { this._bridge.send(hidden ? 'VKWebAppHide' : 'VKWebAppShow'); } catch {}
     }
     document.dispatchEvent(new CustomEvent('app:visibility', { detail: { hidden } }));
   }
 
-  /** Проверка поддержки метода */
   supports(method) {
-    return this.isInitialized && typeof vkBridge.supports === 'function' && vkBridge.supports(method);
+    return this.isInitialized && typeof this._bridge?.supports === 'function' && this._bridge.supports(method);
   }
 
-  /** Прямой вызов (обёртка) */
   async send(method, params = {}) {
     if (!this.isInitialized) throw new Error('VK Bridge not initialized');
-    return vkBridge.send(method, params);
+    return this._bridge.send(method, params);
   }
 }
